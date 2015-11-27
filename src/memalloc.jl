@@ -30,7 +30,7 @@ function analyze_malloc_files(files)
     end
     sort(bc, lt=sortbybytes)
 end
-
+ismemfile(file::AbstractString) = endswith(file, "jl.mem")
 function find_malloc_files(dirs)
     files = ByteString[]
     for dir in dirs
@@ -39,7 +39,7 @@ function find_malloc_files(dirs)
             file = joinpath(dir, file)
             if isdir(file)
                 append!(files, find_malloc_files(file))
-            elseif endswith(file, "jl.mem")
+            elseif ismemfile(file)
                 push!(files, file)
             end
         end
@@ -55,8 +55,25 @@ isfuncexpr(ex::Expr) =
     ex.head == :function || (ex.head == :(=) && typeof(ex.args[1]) == Expr && ex.args[1].head == :call)
 isfuncexpr(arg) = false
 
-# Support Unix command line usage like `julia Coverage.jl $(find ~/.julia/v0.3 -name "*.jl.mem")`
-if !isinteractive()
-    bc = analyze_malloc_files(ARGS)
-    println(bc)
-end
+"""
+        clean_folder_malloc(folder::AbstractString)
+
+    Cleans up all the `.mem` files in the given directory and subdirectories.
+    Unlike `process_folder` this does not include a default value
+    for the root folder, requiring the calling code to be more explicit about
+    which files will be deleted.
+    """
+    function clean_folder_malloc(folder::AbstractString)
+        files = find_malloc_files(folder)
+        for fullfile in files
+            println("Removing $fullfile")
+            rm(fullfile)
+        end
+        nothing
+    end
+
+# # Support Unix command line usage like `julia Coverage.jl $(find ~/.julia/v0.3 -name "*.jl.mem")`
+# if !isinteractive()
+#     bc = analyze_malloc_files(ARGS)
+#     println(bc)
+# end
